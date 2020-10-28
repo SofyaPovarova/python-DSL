@@ -1,4 +1,4 @@
-module Value
+module PyValue
   ( Name
   , Value(..)
   , isTrue
@@ -9,13 +9,14 @@ module Value
 
 type Name = String
 
-data Value
-  = VInt Int
+data Value =
+    VBool Bool
   | VFloat Float
-  | VBool Bool
-  | VString String
+  | VInt Int
   | VNone
+  | VString String
   deriving (Eq, Ord)
+
 
 instance Num Value where
   (VInt a) + (VInt b)           = VInt $ a + b
@@ -24,8 +25,8 @@ instance Num Value where
   (VFloat a) + (VFloat b)       = VFloat $ a + b
   (VBool a) + (VBool b)         = VInt $ fromEnum a + fromEnum b
   (VString a) + (VString b)     = VString $ a ++ b
-  a + b                         = error $ "unsupported '+' operation for "
-                                  <> valueType a <> " and " <> valueType b
+  a + b                         = error $ "unsupported '+' operation for " ++
+                                  valueType a ++ " and " ++ valueType b
 
   (VBool a) - (VBool b)         = VInt $ fromEnum a - fromEnum b
   a - b                         = a + negate b
@@ -39,18 +40,18 @@ instance Num Value where
   (VBool a) * (VFloat b)        = VFloat $ (fromIntegral $ fromEnum a) * b
   (VInt a) * (VBool b)          = VInt $ a * fromEnum b
   (VFloat a) * (VBool b)        = VFloat $ a * (fromIntegral $ fromEnum b)
-  a * b                         = error $ "unsupported '*' operation for "
-                                  <> valueType a <> " and " <> valueType b
+  a * b                         = error $ "unsupported '*' operation for " ++
+                                  valueType a ++ " and " ++ valueType b
 
   abs (VInt a)    = VInt $ abs a
   abs (VFloat a)  = VFloat $ abs a
   abs (VBool _)   = VBool True
-  abs a           = error $ "unsupported 'abs' operation for " <> valueType a
+  abs a           = error $ "unsupported 'abs' operation for " ++ valueType a
 
   signum (VInt a)       = VInt $ signum a
   signum (VFloat a)     = VFloat $ signum a
   signum (VBool a)      = VInt $ fromEnum a
-  signum a              = error $ "unsupported 'signum' operation for " <> valueType a
+  signum a              = error $ "unsupported 'signum' operation for " ++ valueType a
 
   fromInteger a = VInt $ fromIntegral a
 
@@ -64,27 +65,27 @@ instance Fractional Value where
   recip (VFloat a)    = VFloat $ 1 / a
   recip (VBool True)  = VFloat $ 1.0
   recip (VBool False) = error "Division by zero"
-  recip s             = error $ "unsupported '/' operation for " <> valueType s
+  recip s             = error $ "unsupported '/' operation for " ++ valueType s
 
   fromRational a      = VFloat $ fromRational a
 
 
 pyAnd :: Value -> Value -> Value
 pyAnd (VBool a) (VBool b) = VBool $ a && b
-pyAnd a b = error $ "unsupported 'and' operation for "
-              <> valueType a <> " and " <> valueType b
+pyAnd a b = error $ "unsupported 'and' operation for " ++
+            valueType a ++ " and " ++ valueType b
 
 pyOr :: Value -> Value -> Value
 pyOr (VBool a) (VBool b) = VBool $ a || b
-pyOr a b = error $ "unsupported 'or' operation for "
-             <> valueType a <> " and " <> valueType b
+pyOr a b = error $ "unsupported 'or' operation for " ++
+           valueType a ++ " and " ++ valueType b
 
 instance Show Value where
   show (VBool b)    = show b
   show (VFloat f)   = show f
   show (VInt n)     = show n
-  show VNone        = "None"
   show (VString s)  = s
+  show VNone        = "None"
 
 isTrue :: Value -> Bool
 isTrue val = case val of
@@ -96,8 +97,8 @@ isTrue val = case val of
 
 valueType :: Value -> String
 valueType val = case val of
-  VInt _    -> "int"
-  VFloat _  -> "float"
   VBool _   -> "bool"
+  VFloat _  -> "float"
+  VInt _    -> "int"
   VString _ -> "str"
   VNone     -> "None"

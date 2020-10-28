@@ -3,7 +3,7 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Python
+module Py
     ( BinOp(..)
     , Expr(..)
     , Lang(..)
@@ -21,10 +21,10 @@ module Python
     , while'
     ) where
 
-import Value
+import PyValue
 
-import Control.Monad.Free ( Free, MonadFree, liftF )
-import Control.Monad.Free.TH ( makeFree )
+import Control.Monad.Free (Free, MonadFree, liftF)
+import Control.Monad.Free.TH (makeFree)
 import Data.List (intercalate)
 
 data UnOp
@@ -78,7 +78,7 @@ data Lang
   | Assign Name Expr
   | If Expr [Lang]
   | While Expr [Lang]
-  | Def Name [Name]
+  | Def Name [Name] [Lang]
   | Return Expr
   deriving Eq
 
@@ -101,5 +101,5 @@ instance Show Expr where
   show (Val val)            = show val
   show (Un op expr)         = unwords [show op, show expr]
   show (Bin op expr1 expr2) = unwords [show expr1, show op, show expr2]
-  show (Call name args)     = name <> "("
-                              <> (intercalate ", " $ map show args) <> ")"
+  show (Call name args)     = name ++ "(" ++
+                              (intercalate ", " $ map show args) ++ ")"
