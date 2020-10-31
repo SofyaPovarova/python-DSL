@@ -84,7 +84,7 @@ instance Show Value where
   show (VBool b)    = show b
   show (VFloat f)   = show f
   show (VInt n)     = show n
-  show (VString s)  = s
+  show (VString s)  = show s
   show VNone        = "None"
 
 isTrue :: Value -> Bool

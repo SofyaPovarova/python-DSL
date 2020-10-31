@@ -19,11 +19,14 @@ module Py
     , if'
     , return'
     , while'
+
+    , bodyToLangs
+    , langToBody
     ) where
 
 import PyValue
 
-import Control.Monad.Free (Free, MonadFree, liftF)
+import Control.Monad.Free (Free(..), MonadFree, liftF)
 import Control.Monad.Free.TH (makeFree)
 import Data.List (intercalate)
 
@@ -95,6 +98,28 @@ type FreeLang = Free LangF
 type Body = FreeLang ()
 
 makeFree ''LangF
+
+langToBody :: Lang -> Body
+langToBody lang = case lang of
+  Expr e -> expr' e
+  Assign n e ->  assign' n e
+  If e l -> if' e $ sequence_ $ fmap langToBody l
+  While e l -> while' e $ sequence_ $ fmap langToBody l
+  Def n ns l -> def' n ns $ sequence_ $ fmap langToBody l
+  Return e -> return' e
+
+bodyToLangs :: Body -> [Lang]
+bodyToLangs body = reverse $ go body []
+  where
+    go :: Body -> [Lang] -> [Lang]
+    go b acc = case b of
+      Pure _ -> acc
+      Free (Expr' expr next) -> go next $ Expr expr : acc -- ++ [Expr expr]
+      Free (Assign' name expr next) -> go next $ Assign name expr : acc -- ++ [Assign name expr]
+      Free (If' expr nextBody next) -> go next $ If expr (bodyToLangs nextBody) : acc -- ++ [If expr $ bodyToLangs nextBody]
+      Free (While' expr nextBody next) -> go next $ While expr (bodyToLangs nextBody) : acc -- ++ [While expr $ bodyToLangs nextBody]
+      Free (Def' name params nextBody next) -> go next $ Def name params (bodyToLangs nextBody) : acc -- ++ [Def name params $ bodyToLangs nextBody]
+      Free (Return' expr next) -> go next $ Return expr : acc -- ++ [Return expr]
 
 instance Show Expr where
   show (Var name)           = name
