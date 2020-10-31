@@ -4,31 +4,31 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module Py
-    ( BinOp(..)
-    , Expr(..)
-    , Lang(..)
-    , UnOp(..)
+  ( BinOp(..)
+  , Expr(..)
+  , Lang(..)
+  , UnOp(..)
 
-    , Body
-    , FreeLang
-    , LangF(..)
+  , Body
+  , FreeLang
+  , LangF(..)
 
-    , assign'
-    , def'
-    , expr'
-    , if'
-    , return'
-    , while'
+  , assign'
+  , def'
+  , expr'
+  , if'
+  , return'
+  , while'
 
-    , bodyToLangs
-    , langToBody
-    ) where
-
-import PyValue
+  , bodyToLangs
+  , langToBody
+  ) where
 
 import Control.Monad.Free (Free(..), MonadFree, liftF)
 import Control.Monad.Free.TH (makeFree)
 import Data.List (intercalate)
+
+import PyValue
 
 data UnOp
   = Neg
@@ -120,11 +120,3 @@ bodyToLangs body = reverse $ go body []
       Free (While' expr nextBody next) -> go next $ While expr (bodyToLangs nextBody) : acc -- ++ [While expr $ bodyToLangs nextBody]
       Free (Def' name params nextBody next) -> go next $ Def name params (bodyToLangs nextBody) : acc -- ++ [Def name params $ bodyToLangs nextBody]
       Free (Return' expr next) -> go next $ Return expr : acc -- ++ [Return expr]
-
-instance Show Expr where
-  show (Var name)           = name
-  show (Val val)            = show val
-  show (Un op expr)         = unwords [show op, show expr]
-  show (Bin op expr1 expr2) = unwords [show expr1, show op, show expr2]
-  show (Call name args)     = name ++ "(" ++
-                              (intercalate ", " $ map show args) ++ ")"

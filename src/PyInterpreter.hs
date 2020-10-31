@@ -1,32 +1,32 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DerivingStrategies #-}
+
 module PyInterpreter
   ( interpretIO
   ) where
 
-import Py
-import PyValue
+import qualified Data.Map as Map
 
-import Data.IORef (newIORef, readIORef, writeIORef, IORef)
-import qualified Data.Map as M
-import Control.Monad.Catch
-    (Exception, MonadCatch(catch), MonadThrow(throwM))
-import Control.Monad.Free (Free(Free, Pure))
-import Control.Monad.IO.Class (MonadIO(liftIO))
-import Control.Monad.Trans.Reader (ReaderT(runReaderT), ask)
+import Data.IORef (IORef, newIORef, readIORef, writeIORef)
+import Control.Monad.Catch (Exception, catch, throwM)
+import Control.Monad.Free (Free(..))
+import Control.Monad.IO.Class (liftIO)
+import Control.Monad.Trans.Reader (ReaderT, runReaderT, ask)
 import GHC.Float (float2Int)
 import Text.Read (readMaybe)
 
+import Py
+import PyValue
 
-type ScopeValues = M.Map Name ValueOrBody
+type ScopeValues = Map.Map Name ValueOrBody
 
 data ValueOrBody
   = VBValue Value
   | VBDef [Name] Body
 
-pyFuncs :: M.Map Name PyFunc
-pyFuncs = M.fromList
+pyFuncs :: Map.Map Name PyFunc
+pyFuncs = Map.fromList
   [ ("input", PFInput),
     ("int", PFInt),
     ("print", PFPrint),
@@ -58,7 +58,7 @@ pyFunc PFInt args = case args of
       VNone -> throwM $ UnsupportedArgs "int" args
   _ -> throwM $ UnsupportedArgs "int" args
 pyFunc PFPrint args = do
-  liftIO $ putStrLn $ unwords $ map show args
+  liftIO $ putStrLn $ unwords $ map noQuotes args
   return VNone
 pyFunc PFStr args = case args of
   a:[] -> return $ VString $ show a
@@ -66,8 +66,8 @@ pyFunc PFStr args = case args of
 
 newtype Env = Env { eScopeValues :: IORef ScopeValues }
 
-data Error =
-    NotFunction Name
+data Error
+  = NotFunction Name
   | NotVariable Name
   | ReturnCheat Value
   | Undefined Name
@@ -77,26 +77,28 @@ data Error =
   deriving anyclass Exception
 
 instance Show Error where
-  show (NotFunction name)           = name ++ " is not a function"
-  show (NotVariable name)           = name ++ " is not a variable"
-  show (Undefined name)             = "name '" ++ name ++ "' is not defined"
-  show (UnsupportedArgs name vals)  = name ++ "() doesn't support arguments: " ++
-                                      unwords (map show vals)
-  show (TypesMismatch op val1 val2) = "can't perform '" ++ show op ++ "' of " ++
-                                      valueType val1 ++ " and " ++ valueType val2
-  show (ReturnCheat v)              = "incorrect calling of return(" ++ show v ++ ")"
+  show (NotFunction name) = name ++ " is not a function"
+  show (NotVariable name) = name ++ " is not a variable"
+  show (Undefined name) = "name '" ++ name ++ "' is not defined"
+  show (UnsupportedArgs name vals) =
+    name ++ "() doesn't support arguments: " ++
+      unwords (map show vals)
+  show (TypesMismatch op val1 val2) =
+    "can't perform '" ++ show op ++ "' of " ++
+      valueType val1 ++ " and " ++ valueType val2
+  show (ReturnCheat v) = "incorrect calling of return(" ++ show v ++ ")"
 
 setValue :: Name -> ValueOrBody -> AppM ()
 setValue name valueOrBody = do
   env <- ask
   let scopeRef = eScopeValues env
   scope <- liftIO $ readIORef scopeRef
-  liftIO $ writeIORef scopeRef $ M.insert name valueOrBody scope
+  liftIO $ writeIORef scopeRef $ Map.insert name valueOrBody scope
 
 getValue :: Name -> AppM ValueOrBody
 getValue name = do
   scope <- ask >>= liftIO . readIORef . eScopeValues
-  let mVal = M.lookup name scope
+  let mVal = Map.lookup name scope
   case mVal of
     Just val -> return val
     Nothing -> throwM $ Undefined name
@@ -120,18 +122,18 @@ eval (Call name exprs) = do
   let scopeRef = eScopeValues env
   scope <- liftIO $ readIORef scopeRef
   vals <- mapM eval exprs
-  case M.lookup name pyFuncs of
+  case Map.lookup name pyFuncs of
     Just pf -> do
       val <- pyFunc pf vals
       return val
     Nothing -> do
-      case M.lookup name scope of
+      case Map.lookup name scope of
         Just (VBDef params body) -> do
           if length vals /= length params
           then throwM $ UnsupportedArgs name vals
           else do
             let innerScopeL = zip params $ map VBValue vals
-            let innerScope = M.fromList $ (M.toList scope) ++ innerScopeL
+            let innerScope = Map.fromList $ (Map.toList scope) ++ innerScopeL
             liftIO $ writeIORef scopeRef innerScope
             returned <- (toAppM body >> return VNone) `catch` \case
               ReturnCheat v -> return v
@@ -194,5 +196,11 @@ toAppM (Free (Return' expr _)) = do
 
 interpretIO :: FreeLang () -> IO ()
 interpretIO fLang = do
-  scope <- newIORef M.empty
+  scope <- newIORef Map.empty
   runReaderT (toAppM fLang) $ Env scope
+
+-- helper
+noQuotes :: Value -> String
+noQuotes value = case value of
+  VString s -> s
+  v -> show v

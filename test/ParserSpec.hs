@@ -2,7 +2,6 @@ module ParserSpec
   ( spec
   ) where
 
-import Data.Either(either)
 import Test.Hspec (Spec, describe, it, shouldBe)
 import Text.Megaparsec
 
@@ -14,16 +13,16 @@ spec :: Spec
 spec = do
   describe "factorial test" $
     it "check parsing of implementation of the factorial function" $ do
-      (==) (either (const []) bodyToLangs $ parse pyParse "" factorialString)
-           factorialLang `shouldBe` True
+      let actual = (either (const []) bodyToLangs $ parse pyParse "" factorialString) == factorialLang
+      actual `shouldBe` True
   describe "built-ins test" $
     it "check parsing built-in functions" $ do
-      (==) (either (const []) bodyToLangs $ parse pyParse "" builtinString)
-           builtinLang `shouldBe` True
+      let actual = (either (const []) bodyToLangs $ parse pyParse "" builtinString) == builtinLang
+      actual `shouldBe` True
   describe "arithmetic test" $
     it "check parsing arithmetic expressions" $ do
-      (==) (either (const []) bodyToLangs $ parse pyParse "" arithString)
-           arithLang `shouldBe` True
+      let actual = (either (const []) bodyToLangs $ parse pyParse "" arithString) == arithLang
+      actual `shouldBe` True
 
 -- factorial
 factorialString :: String

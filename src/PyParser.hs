@@ -2,17 +2,17 @@ module PyParser
   ( pyParse
   ) where
 
-import Py
-import PyValue
+import qualified Text.Megaparsec.Char.Lexer as Lex
 
 import Data.Foldable (sequenceA_)
 import Data.Void (Void)
 import Control.Monad (void)
-import Control.Monad.Combinators.Expr
-  (Operator(..), makeExprParser)
+import Control.Monad.Combinators.Expr (Operator(..), makeExprParser)
 import Text.Megaparsec
 import Text.Megaparsec.Char
-import qualified Text.Megaparsec.Char.Lexer as Lex
+
+import Py
+import PyValue
 
 type Parser = Parsec Void String
 
@@ -125,8 +125,8 @@ indent :: Parser (Lex.IndentOpt Parser a b) -> Parser a
 indent = Lex.indentBlock spOrNl
 
 indentBody :: (Body -> Lang) -> Parser (Lex.IndentOpt Parser Lang Lang)
-indentBody bToL = return $ Lex.IndentSome Nothing
-                 (return . bToL . langsToBody) lang
+indentBody bToL =
+  return $ Lex.IndentSome Nothing (return . bToL . langsToBody) lang
 
 body :: Parser Body
 body = langsToBody <$> many lang
