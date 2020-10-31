@@ -6,5 +6,6 @@ def fact(x):
         cur = cur + 1
     return res
 
+print(fact(1))
 print(fact(3))
 print(fact(5))
